@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a73e8">
+<title>Semak Status Yuran - KBTTC 2026</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f0f2f5;min-height:100vh;font-size:16px}
+.header{background:#1a73e8;color:#fff;padding:20px;text-align:center}
+.header h1{font-size:20px;font-weight:700}
+.header p{font-size:13px;opacity:.85;margin-top:3px}
+.wrap{padding:16px;max-width:600px;margin:0 auto}
+.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.card h2{font-size:16px;color:#333;margin-bottom:10px;font-weight:700}
+label{display:block;font-size:13px;color:#555;margin-bottom:6px;font-weight:600}
+input{width:100%;padding:16px;border:1.5px solid #ddd;border-radius:10px;font-size:28px;letter-spacing:14px;text-align:center;color:#333;background:#fff;margin-bottom:14px;-webkit-appearance:none}
+input:focus{outline:none;border-color:#1a73e8}
+.btn{width:100%;padding:15px;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;background:#1a73e8;color:#fff}
+.btn:disabled{background:#ccc;cursor:not-allowed}
+.btn:active{opacity:.85}
+.alert{border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:14px;line-height:1.6}
+.alert-error{background:#fce8e6;color:#c5221f;border:1px solid #f5c6c2}
+.alert-info{background:#e8f0fe;color:#1a73e8;border:1px solid #c5d8f6}
+.nama-box{margin-bottom:14px}
+.nama-text{font-size:20px;font-weight:700;color:#333}
+.no-ahli-text{font-size:13px;color:#888;margin-top:3px}
+.vip-badge{display:inline-block;background:#f9a825;color:#fff;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700;margin-left:8px;vertical-align:middle}
+.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.bulan-item{border-radius:8px;padding:10px 4px;text-align:center;font-size:12px;font-weight:600}
+.bulan-bayar{background:#e6f4ea;color:#137333}
+.bulan-belum{background:#fce8e6;color:#c5221f}
+.bulan-vip{background:#b7dfbf;color:#1b5e20}
+.bulan-label{font-size:11px;margin-bottom:3px;font-weight:700}
+.legend{display:flex;gap:12px;margin-top:12px;font-size:12px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:5px}
+.legend-dot{width:12px;height:12px;border-radius:3px}
+.jumlah-box{margin-top:14px;padding:12px 14px;background:#f8f9fa;border-radius:10px;font-size:14px;color:#555}
+.footer{text-align:center;font-size:12px;color:#aaa;margin-top:20px;padding-bottom:30px}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Semak Status Yuran</h1>
+  <p>Kedai Buluh Table Tennis Club 2026</p>
+</div>
+<div class="wrap">
+  <div class="card">
+    <h2>Masukkan No. Telefon</h2>
+    <div class="alert alert-info" style="margin-bottom:14px;font-size:13px">
+      Taip <strong>4 digit terakhir</strong> nombor telefon anda yang didaftarkan.
+    </div>
+    <label>4 Digit Akhir No. Telefon</label>
+    <input type="tel" id="inp-phone" placeholder="_ _ _ _" maxlength="4" oninput="validate()">
+    <button class="btn" id="btn-semak" onclick="semak()" disabled>Semak Status Saya</button>
+  </div>
+  <div id="result"></div>
+  <div class="footer">KBTTC Yuran 2026 • Data dikemaskini secara langsung</div>
+</div>
+<script src="api.js"></script>
+<script>
+var BULAN = ['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogos','Sep','Okt','Nov','Dis'];
+
+function validate() {
+  document.getElementById('inp-phone').value = document.getElementById('inp-phone').value.replace(/\D/g,'');
+  document.getElementById('btn-semak').disabled = document.getElementById('inp-phone').value.length !== 4;
+}
+
+async function semak() {
+  var last4 = document.getElementById('inp-phone').value.trim();
+  var btn = document.getElementById('btn-semak');
+  btn.disabled=true; btn.textContent='Menyemak...';
+  document.getElementById('result').innerHTML='';
+  try {
+    var res = await api('semakStatusAhli', { last4 });
+    btn.textContent='Semak Status Saya';
+    var div = document.getElementById('result');
+    if (!res.success) {
+      div.innerHTML='<div class="alert alert-error">'+res.msg+'<br><small>Pastikan no. telefon betul atau hubungi pengurus kelab.</small></div>';
+      btn.disabled=false; return;
+    }
+    var grid='', bayarCount=0;
+    BULAN.forEach(function(b){
+      var val=res.bayaran[b];
+      var cls=res.isVip?'bulan-vip':(val?'bulan-bayar':'bulan-belum');
+      if(val||res.isVip) bayarCount++;
+      grid+='<div class="bulan-item '+cls+'"><div class="bulan-label">'+b+'</div>'+(res.isVip?'★':(val?'RM'+val:'-'))+'</div>';
+    });
+    var jumlah = res.isVip ? 'RM50 (Yuran Tahunan)' : 'RM'+(bayarCount*5)+' ('+bayarCount+' bulan)';
+    div.innerHTML='<div class="card">'+
+      '<div class="nama-box"><div class="nama-text">'+res.nama+(res.isVip?'<span class="vip-badge">VIP</span>':'')+'</div>'+
+      '<div class="no-ahli-text">No. Ahli: '+res.noAhli+'</div></div>'+
+      '<div class="status-grid">'+grid+'</div>'+
+      '<div class="legend">'+
+      '<div class="legend-item"><div class="legend-dot" style="background:#e6f4ea;border:1px solid #b7dfbf"></div>Dah bayar</div>'+
+      '<div class="legend-item"><div class="legend-dot" style="background:#fce8e6;border:1px solid #f5c6c2"></div>Belum bayar</div>'+
+      (res.isVip?'<div class="legend-item"><div class="legend-dot" style="background:#b7dfbf"></div>VIP</div>':'')+
+      '</div>'+
+      '<div class="jumlah-box">Jumlah dibayar: <strong style="color:#137333">'+jumlah+'</strong></div>'+
+      '</div>';
+  } catch(e) {
+    btn.textContent='Semak Status Saya'; btn.disabled=false;
+    document.getElementById('result').innerHTML='<div class="alert alert-error">Ralat sistem. Cuba semula.</div>';
+  }
+}
+</script>
+</body>
+</html>
