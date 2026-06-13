@@ -69,6 +69,7 @@ input:disabled{background:#f5f5f5;color:#999}
 <div class="tabs">
   <div class="tab active" onclick="switchTab('kutip')">Kutip Yuran</div>
   <div class="tab" onclick="switchTab('daftar')">Daftar Ahli</div>
+  <div class="tab" onclick="switchTab('ringkasan')">Ringkasan</div>
 </div>
 
 <!-- PAGE: KUTIP YURAN -->
@@ -128,12 +129,36 @@ input:disabled{background:#f5f5f5;color:#999}
     <label>No. Telefon</label>
     <input type="tel" id="inp-phone" placeholder="cth: 0123456789">
     <div class="alert alert-info" style="font-size:13px">
-      Yuran pendaftaran: <strong>RM5</strong> akan direkodkan secara automatik.
+      Pendaftaran ahli baru: <strong>RM10</strong> (RM5 yuran daftar + RM5 yuran bulan semasa) akan direkodkan secara automatik.
     </div>
     <br>
     <button class="btn btn-success" id="btn-daftar" onclick="submitDaftar()" disabled>Daftar Ahli Baru</button>
   </div>
   <div id="result-daftar"></div>
+</div>
+
+<!-- PAGE: RINGKASAN -->
+<div id="page-ringkasan" class="page">
+  <div class="card">
+    <h2>Ringkasan Kutipan Yuran 2026</h2>
+    <div id="ringkasan-loading" class="loading">Memuatkan data...</div>
+    <div id="ringkasan-content" style="display:none">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:#1a73e8;color:#fff">
+            <th style="padding:8px;text-align:left;border-radius:8px 0 0 0">Bulan</th>
+            <th style="padding:8px;text-align:right">Bulanan</th>
+            <th style="padding:8px;text-align:right">VIP</th>
+            <th style="padding:8px;text-align:right">Daftar</th>
+            <th style="padding:8px;text-align:right;border-radius:0 8px 0 0">Jumlah</th>
+          </tr>
+        </thead>
+        <tbody id="ringkasan-tbody"></tbody>
+        <tfoot id="ringkasan-tfoot"></tfoot>
+      </table>
+    </div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="loadRingkasan()">🔄 Refresh</button>
+  </div>
 </div>
 
 <script src="api.js"></script>
@@ -145,11 +170,45 @@ var BULAN = ['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogos','Sep','Okt','Nov',
 
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(function(t,i){
-    t.classList.toggle('active',(i===0&&tab==='kutip')||(i===1&&tab==='daftar'));
+    t.classList.toggle('active',(i===0&&tab==='kutip')||(i===1&&tab==='daftar')||(i===2&&tab==='ringkasan'));
   });
   document.getElementById('page-kutip').classList.toggle('active',tab==='kutip');
   document.getElementById('page-daftar').classList.toggle('active',tab==='daftar');
+  document.getElementById('page-ringkasan').classList.toggle('active',tab==='ringkasan');
   closeDropdown();
+  if (tab === 'ringkasan') loadRingkasan();
+}
+
+async function loadRingkasan() {
+  document.getElementById('ringkasan-loading').style.display = 'block';
+  document.getElementById('ringkasan-content').style.display = 'none';
+  try {
+    var res = await api('getRingkasanKutipan');
+    if (!res.success) return;
+    var tbody = document.getElementById('ringkasan-tbody');
+    tbody.innerHTML = res.rows.map(function(r){
+      var hl = r.isSemasa ? 'background:#fff8e1;font-weight:700' : '';
+      return '<tr style="'+hl+'border-bottom:1px solid #f0f0f0">'+
+        '<td style="padding:8px">'+r.bulan+(r.isSemasa?' ★':'')+'</td>'+
+        '<td style="padding:8px;text-align:right">'+(r.kutipanBulanan?'RM'+r.kutipanBulanan:'-')+'</td>'+
+        '<td style="padding:8px;text-align:right">'+(r.kutipanVip?'RM'+r.kutipanVip:'-')+'</td>'+
+        '<td style="padding:8px;text-align:right">'+(r.kutipanDaftar?'RM'+r.kutipanDaftar:'-')+'</td>'+
+        '<td style="padding:8px;text-align:right;font-weight:600">'+(r.jumlah?'RM'+r.jumlah:'-')+'</td>'+
+        '</tr>';
+    }).join('');
+    var tfoot = document.getElementById('ringkasan-tfoot');
+    tfoot.innerHTML = '<tr style="background:#e8f0fe;font-weight:700">'+
+      '<td style="padding:8px">JUMLAH</td>'+
+      '<td style="padding:8px;text-align:right">RM'+res.totalBulanan+'</td>'+
+      '<td style="padding:8px;text-align:right">RM'+res.totalVip+'</td>'+
+      '<td style="padding:8px;text-align:right">RM'+res.totalDaftar+'</td>'+
+      '<td style="padding:8px;text-align:right;color:#1a73e8">RM'+res.jumlahKeseluruhan+'</td>'+
+      '</tr>';
+    document.getElementById('ringkasan-loading').style.display = 'none';
+    document.getElementById('ringkasan-content').style.display = 'block';
+  } catch(e) {
+    document.getElementById('ringkasan-loading').textContent = 'Gagal muatkan: '+e.message;
+  }
 }
 
 window.onload = function() {
@@ -322,7 +381,7 @@ async function submitDaftar() {
     btn.textContent='Daftar Ahli Baru';
     var div = document.getElementById('result-daftar');
     if (res.success) {
-      div.innerHTML='<div class="alert alert-success">Berjaya didaftarkan!<br>Nama: <strong>'+res.nama+'</strong><br>No. Ahli: <strong>'+res.noAhli+'</strong></div>';
+      div.innerHTML='<div class="alert alert-success">Berjaya didaftarkan!<br>Nama: <strong>'+res.nama+'</strong><br>No. Ahli: <strong>'+res.noAhli+'</strong><br>Yuran daftar (RM5) + Yuran '+res.bulanSemasa+' (RM5) = <strong>RM'+res.jumlahBayaran+'</strong></div>';
       document.getElementById('inp-nama').value=''; document.getElementById('inp-phone').value='';
       btn.disabled=true; loadAhliList();
     } else { div.innerHTML='<div class="alert alert-error">'+res.msg+'</div>'; btn.disabled=false; }
